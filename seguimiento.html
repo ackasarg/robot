@@ -454,6 +454,7 @@
       <label>Monto de salida (bruto)</label>
       <input type="number" id="out-monto" placeholder="0" min="0" step="any">
     </div>
+    <div class="comision-hint" id="out-monto-hint"></div>
     <div class="field-row">
       <div class="field">
         <label>Comisión pagada al salir</label>
@@ -1224,15 +1225,27 @@ async function confirmarEntrada(){
 }
 
 function abrirModalSalida(posId, esSim){
-  modalCtx = { posId, esSim };
   const lista = esSim ? ESTADO.simAbiertas : ESTADO.realAbiertas;
   const pos = lista.find(p=>p.id===posId);
+  modalCtx = { posId, esSim, pos };
   document.getElementById('modal-salida-sub').textContent = pos.ticker + (esSim?' · SIMULACIÓN':'');
   document.getElementById('out-precio').value = '';
   document.getElementById('out-monto').value = '';
   document.getElementById('out-comision').value = '';
   document.getElementById('out-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('out-monto-hint').textContent = pos.precioEntrada
+    ? `Se calcula solo: (monto invertido ÷ precio de entrada) × precio de salida — asume que vendés todo lo que compraste. Editalo si es una venta parcial.`
+    : `No cargaste precio de entrada en esta posición, así que no puedo deducir la cantidad de unidades — completá el monto de salida a mano.`;
   document.getElementById('modal-salida').classList.add('open');
+}
+function autocompletarMontoSalidaSE(){
+  const pos = modalCtx.pos;
+  if(!pos || !pos.precioEntrada) return;
+  const precioSalida = document.getElementById('out-precio').value;
+  if(!precioSalida) return;
+  const cantidad = pos.monto / pos.precioEntrada;
+  document.getElementById('out-monto').value = Math.round(cantidad * Number(precioSalida) * 100) / 100;
+  autocompletarComisionSE('out'); // el monto cambió por código, no dispara su propio 'input'
 }
 async function confirmarSalida(){
   const precioSalida = document.getElementById('out-precio').value;
@@ -1345,6 +1358,7 @@ document.getElementById('in-monto').addEventListener('input', ()=>autocompletarC
 document.getElementById('in-categoria-iol').addEventListener('change', ()=>autocompletarComisionSE('in'));
 document.getElementById('out-monto').addEventListener('input', ()=>autocompletarComisionSE('out'));
 document.getElementById('out-categoria-iol').addEventListener('change', ()=>autocompletarComisionSE('out'));
+document.getElementById('out-precio').addEventListener('input', autocompletarMontoSalidaSE);
 
 function actualizarReloj(){
   const d = new Date();
